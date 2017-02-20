@@ -1,0 +1,83 @@
+﻿<Window
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+        mc:Ignorable="d" 
+        x:Class="BoggleClient.MainWindow"
+        Title="Boggle" Height="380" Width="786" ResizeMode="NoResize" WindowStartupLocation="CenterOwner">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition/>
+            <RowDefinition Height="0*"/>
+        </Grid.RowDefinitions>
+        <TabControl x:Name="tabControl" Margin="0,0,0.2,-37.2" Grid.RowSpan="2" >
+            <TabItem Header="Connect">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="83*"/>
+                        <ColumnDefinition Width="428*"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBox x:Name="NameTextbox" HorizontalAlignment="Left" Height="23" Margin="19.8,8,0,0" TextWrapping="Wrap" Text="" VerticalAlignment="Top" Width="276" Background="White" Grid.Column="1" KeyDown="EnterKeyHandler"/>
+                    <TextBox x:Name="IPTextbox" HorizontalAlignment="Left" Height="23" Margin="19.8,36,0,0" TextWrapping="Wrap" Text="" VerticalAlignment="Top" Width="276" Grid.Column="1" KeyDown="EnterKeyHandler"/>
+                    <Button x:Name="PlayButton" Content="Play" HorizontalAlignment="Left" Margin="10,99,0,0" VerticalAlignment="Top" Width="116" Height="22" Click="PlayButton_Click" Grid.ColumnSpan="2"/>
+                    <Button x:Name="CancelButton" Content="Cancel" HorizontalAlignment="Left" Margin="48,99,0,0" VerticalAlignment="Top" Width="75" Click="CancelButton_Click" Grid.Column="1"/>
+                    <Label Content="Enter Name..." HorizontalAlignment="Left" VerticalAlignment="Top" Grid.ColumnSpan="2" Width="103" Margin="0,10,0,0"/>
+                    <Label Content="Enter IP Address..." HorizontalAlignment="Left" VerticalAlignment="Top" Grid.ColumnSpan="2" Width="103" Margin="0,36,0,0"/>
+                    <Label Content="Boggle The Videogame" Grid.Column="1" HorizontalAlignment="Left" Margin="285.4,226,0,0" VerticalAlignment="Top" FontFamily="Harlow Solid Italic" FontSize="36" Cursor="None"/>
+                </Grid>
+            </TabItem>
+            <TabItem Header="Game">
+                <Grid HorizontalAlignment="Left" Height="22" VerticalAlignment="Top" Width="47" Margin="372,171,0,0">
+                    <TextBox x:Name="YourScore" IsReadOnly="true" HorizontalAlignment="Left" Height="23" Margin="-253,-157,0,0" TextWrapping="Wrap" Text="0" VerticalAlignment="Top" Width="40" BorderThickness="0"/>
+                    <TextBox x:Name="OpponentScore" IsReadOnly="true" HorizontalAlignment="Left" Height="23" Margin="-253,-130,0,0" TextWrapping="Wrap" Text="0" VerticalAlignment="Top" Width="40" BorderThickness="0"/>
+                    <TextBox x:Name="TimeTextBox" IsReadOnly="true" HorizontalAlignment="Left" Height="23" Margin="-253,-99,0,0" TextWrapping="Wrap" Text="0" VerticalAlignment="Top" Width="40" BorderThickness="0"/>
+                    <Label Content="Your Score" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="-366,-161,0,0" Width="113"/>
+                    <Label Content="Opponent's Score" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="-366,-135,0,0" Width="113"/>
+                    <Label Content="Time Remaining:" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="-366,-104,0,0" Width="113"/>
+                    <Grid HorizontalAlignment="Left" Height="204" VerticalAlignment="Top" Width="233" Margin="158,-56,-344,-126">
+                        <TextBox x:Name="Board1" IsReadOnly="true" HorizontalAlignment="Left" Height="51" TextWrapping="Wrap" Text="" VerticalAlignment="Top" Width="60" TextAlignment="Center" FontSize="16">
+                        </TextBox>
+                        <TextBox x:Name="Board2" IsReadOnly="true" HorizontalAlignment="Left" Height="51" TextWrapping="Wrap" Text="" VerticalAlignment="Top" Width="60" Margin="60,0,0,0" TextAlignment="Center" FontSize="16"/>
+                        <TextBox x:Name="Board3" IsReadOnly="true" HorizontalAlignment="Left" Height="51" TextWrapping="Wrap" Text="" VerticalAlignment="Top" Width="60" Margin="120,0,0,0" TextAlignment="Center" FontSize="16"/>
+                        <TextBox x:Name="Board4" IsReadOnly="true" HorizontalAlignment="Left" Height="51" TextWrapping="Wrap" Text="" VerticalAlignment="Top" Width="60" Margin="175,0,-2,0" TextAlignment="Center" FontSize="16"/>
+                        <TextBox x:Name="Board5" IsReadOnly="true" HorizontalAlignment="Left" Height="51" TextWrapping="Wrap" Text="" VerticalAlignment="Top" Width="60" Margin="0,51,0,0" TextAlignment="Center" FontSize="16"/>
+                        <TextBox x:Name="Board6" IsReadOnly="true" HorizontalAlignment="Left" Height="51" TextWrapping="Wrap" Text="" VerticalAlignment="Top" Width="60" Margin="60,51,0,0" TextAlignment="Center" FontSize="16"/>
+                        <TextBox x:Name="Board7" IsReadOnly="true" HorizontalAlignment="Left" Height="51" TextWrapping="Wrap" Text="" VerticalAlignment="Top" Width="60" Margin="120,51,0,0" TextAlignment="Center" FontSize="16"/>
+                        <TextBox x:Name="Board8" IsReadOnly="true" HorizontalAlignment="Left" Height="51" TextWrapping="Wrap" Text="" VerticalAlignment="Top" Width="60" Margin="175,51,-2,0" TextAlignment="Center" FontSize="16"/>
+                        <TextBox x:Name="Board9" IsReadOnly="true" HorizontalAlignment="Left" Height="52" TextWrapping="Wrap" Text="" VerticalAlignment="Top" Width="60" Margin="0,102,0,0" TextAlignment="Center" FontSize="16"/>
+                        <TextBox x:Name="Board10" IsReadOnly="true" HorizontalAlignment="Left" Height="52" TextWrapping="Wrap" Text="" VerticalAlignment="Top" Width="60" Margin="60,102,0,0" TextAlignment="Center" FontSize="16"/>
+                        <TextBox x:Name="Board11" IsReadOnly="true" HorizontalAlignment="Left" Height="52" TextWrapping="Wrap" Text="" VerticalAlignment="Top" Width="60" Margin="120,102,0,0" TextAlignment="Center" FontSize="16"/>
+                        <TextBox x:Name="Board12" IsReadOnly="true" HorizontalAlignment="Left" Height="52" TextWrapping="Wrap" Text="" VerticalAlignment="Top" Width="60" Margin="175,102,-2,0" TextAlignment="Center" FontSize="16"/>
+                        <TextBox x:Name="Board13" IsReadOnly="true" HorizontalAlignment="Left" Height="51" TextWrapping="Wrap" Text="" VerticalAlignment="Top" Width="60" Margin="0,154,0,-1" TextAlignment="Center" FontSize="16"/>
+                        <TextBox x:Name="Board14" IsReadOnly="true" HorizontalAlignment="Left" Height="51" TextWrapping="Wrap" Text="" VerticalAlignment="Top" Width="60" Margin="60,154,0,-1" TextAlignment="Center" FontSize="16"/>
+                        <TextBox x:Name="Board15" IsReadOnly="true" HorizontalAlignment="Left" Height="51" TextWrapping="Wrap" Text="" VerticalAlignment="Top" Width="60" Margin="120,154,0,-1" TextAlignment="Center" FontSize="16"/>
+                        <TextBox x:Name="Board16" IsReadOnly="true" HorizontalAlignment="Left" Height="51" TextWrapping="Wrap" Text="" VerticalAlignment="Top" Width="60" Margin="175,154,-2,-1" TextAlignment="Center" FontSize="16"/>
+                    </Grid>
+                    <Label x:Name="OpponenetNameTextbox" Content="Playing: " HorizontalAlignment="Left" Height="25" Margin="-75,-175,-23,0" VerticalAlignment="Top" Width="145" FontWeight="Bold" FontStyle="Italic">
+                        <Label.Effect>
+                            <DropShadowEffect/>
+                        </Label.Effect>
+                    </Label>
+                    <Label Content="Enter Word: " HorizontalAlignment="Left" VerticalAlignment="Top" Margin="-75,122,0,-126"/>
+                    <TextBox x:Name="WordTextbox" HorizontalAlignment="Left" KeyDown="EnterKeyHandler" Height="22" TextWrapping="Wrap" Text="" VerticalAlignment="Top" Width="143" Margin="7,126,-103,-126"/>
+                </Grid>
+            </TabItem>
+            <TabItem Header="Scores">
+                <Grid Height="276" VerticalAlignment="Top" Margin="10,0,-1,0">
+                    <Label x:Name="myUniqueWordsLabel" Content="My Unique Words" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10,0,0,0"/>
+                    <ListBox x:Name="myUniqueWordsListBox" HorizontalAlignment="Left" Height="240" VerticalAlignment="Top" Width="150" Margin="10,26,0,0"/>
+                    <Label x:Name="oppUniqueWordsLabel" Content="Opponent's Unique Words" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="159,0,0,0"/>
+                    <ListBox x:Name="oppUniqueWordsListBox" HorizontalAlignment="Left" Height="240" VerticalAlignment="Top" Width="150" Margin="160,26,0,0"/>
+                    <Label x:Name="commonWordsLabel" Content="Common Words" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="310,0,0,0"/>
+                    <ListBox x:Name="commonWordsListBox" HorizontalAlignment="Left" Height="240" VerticalAlignment="Top" Width="150" Margin="310,26,0,0" d:IsHidden="True"/>
+                    <Label x:Name="myIllegalWordsLabel" Content="My Illegal Words" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="460,0,0,0"/>
+                    <ListBox x:Name="myIllegalWordsListBox" HorizontalAlignment="Left" Height="240" VerticalAlignment="Top" Width="150" Margin="460,26,0,0"/>
+                    <Label x:Name="oppIllegalWordsLabel" Content="Opponent's Illegal Words" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="610,0,0,0"/>
+                    <ListBox x:Name="oppIllegalWordsListBox" HorizontalAlignment="Left" Height="240" VerticalAlignment="Top" Width="150" Margin="610,26,0,0"/>
+                </Grid>
+
+            </TabItem>
+        </TabControl>
+    </Grid>
+</Window>

@@ -1,0 +1,111 @@
+﻿using System;
+using CustomNetworking;
+using BoggleServer;
+using System.Collections.Generic;
+using System.Net.Sockets;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace BoggleClient
+{
+    class Client
+    {
+        private StringSocket ss;
+        private String playerName;
+        private int myScore;
+        private int opponentScore;
+        public event Action<String, String> StartGame;
+        public event Action<String> UpdateTime;
+        public event Action<String, String> UpdateScores;
+        public event Action<String, String, String, String, String> EndGame;
+
+        public Client(String playerName, String ipAddress)
+        {
+            TcpClient tcpClient = null;
+            tcpClient = new TcpClient(ipAddress, 2000);
+            ss = new StringSocket(tcpClient.Client, new UTF8Encoding());
+            this.playerName = playerName;
+            
+            //TODO: If the connection times out, throw an exception, and catch it in
+            //the view, and update accordingly.
+        }
+
+        public void Connect()
+        {
+            ss.BeginSend("PLAY " + playerName,  (e,o) => { }, playerName);
+            ss.BeginReceive(GameStarting, playerName);
+        }
+
+
+        private void GameStarting(String startingInfo, Exception e, Object playerName) {
+            String[] words = startingInfo.Split(' ');
+            // validate the string
+            if(!words[0].Equals("START"))
+                throw new ArgumentException("Got invalid info from the server");
+
+            String boggleBoard = words[1];
+            String opponentName = words[2];
+            StartGame(opponentName, boggleBoard);
+            ss.BeginReceive(MessageReceived, playerName);
+        }
+
+        private void MessageReceived(String msg, Exception e, Object playerName){
+            String messageType = msg.Substring(0, msg.IndexOf(' '));
+            msg = msg.Substring(msg.IndexOf(' '));
+
+            switch(messageType){
+                case "TIME":
+                    UpdateTime(msg);
+                    break;
+                case "SCORE":
+                    String[] scores = msg.Split(' ');
+                    UpdateScores(scores[0], scores[1]);
+                    break;
+                case "STOP":
+                    break;
+                case "TERMINATED":
+                    ParseEndGame(msg);
+                    break;
+
+            }
+        }
+
+        private void ParseEndGame(string msg) {
+            List<String> words = new List<String>(msg.Split(' '));
+            int numMyLegalWords = Convert.ToInt32(words[0]);
+            words.RemoveAt(0);
+            // Get my legal words
+            String[] myLegalWords = new String[numMyLegalWords];
+            words.CopyTo(0,myLegalWords, 0, numMyLegalWords);
+            words.RemoveRange(0, numMyLegalWords);
+            // Get opponents legal words
+            int numOpponentLegalWords = Convert.ToInt32(words[0]);
+            String[] opponentLegalWords = new String[numOpponentLegalWords];
+            words.CopyTo(0,opponentLegalWords, 0, numMyLegalWords);
+            words.RemoveRange(0, numOpponentLegalWords);
+            // Get common words
+            int numCommonWords = Convert.ToInt32(words[0]);
+            String[] commonWords = new String[numCommonWords];
+            words.CopyTo(0,commonWords, 0, numCommonWords);
+            words.RemoveRange(0, numCommonWords);
+            // Get my illegal words
+            int numMyIllegalWords = Convert.ToInt32(words[0]);
+            String[] myIllegalWords = new String[numMyIllegalWords];
+            words.CopyTo(0,myIllegalWords, 0, numMyIllegalWords);
+            words.RemoveRange(0, numMyIllegalWords);
+            // Get opponent's illegal words
+            int numOpponentIllegalWords = Convert.ToInt32(words[0]);
+            String[] opponentIllegalWords = new String[numOpponentIllegalWords];
+            words.CopyTo(0,opponentIllegalWords, 0, numOpponentIllegalWords);
+            words.RemoveRange(0, numOpponentIllegalWords);
+
+            EndGame(myLegalWords, opponentLegalWords, commonWords, myIllegalWords, opponentIllegalWords);
+        }
+
+        public void CleanUpConnection()
+        {
+            ss.Close();
+        }
+    }
+}

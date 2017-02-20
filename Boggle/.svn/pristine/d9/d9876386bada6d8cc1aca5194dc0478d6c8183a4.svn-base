@@ -1,0 +1,32 @@
+﻿using System;
+using CustomNetworking;
+using BoggleServer;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace BoggleClient
+{
+    class ClientWork
+    {
+        private StringSocket ss;
+        private String playerName;
+
+        public ClientWork(StringSocket ss, String playerName)
+        {
+            this.ss = ss;
+            this.playerName = playerName;
+        }
+
+        public void Connect()
+        {
+            ss.BeginSend("PLAY " + playerName,  (e,o) => { }, playerName);
+            ss.BeginReceive(GameStarting, playerName);
+        }
+
+        public void GameStarting(String startingInfo, Exception e, Object playerName) {
+            // Disect startingInfo
+        }
+    }
+}

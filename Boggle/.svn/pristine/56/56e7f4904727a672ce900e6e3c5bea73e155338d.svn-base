@@ -1,0 +1,47 @@
+﻿using System;
+using CustomNetworking;
+using BoggleServer;
+using System.Collections.Generic;
+using System.Net.Sockets;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace BoggleClient
+{
+    class Client
+    {
+        private StringSocket ss;
+        private String playerName;
+        private String opponenentName;
+        private int myScore;
+        private int opponentScore;
+
+        public Client(String playerName, String ipAddress)
+        {
+            TcpClient tcpClient = null;
+            tcpClient = new TcpClient(ipAddress, 2000);
+            ss = new StringSocket(tcpClient.Client, new UTF8Encoding());
+            this.playerName = playerName;
+            
+            //TODO: If the connection times out, throw an exception, and catch it in
+            //the view, and update accordingly.
+        }
+
+        public void Connect()
+        {
+            ss.BeginSend("PLAY " + playerName,  (e,o) => { }, playerName);
+            ss.BeginReceive(GameStarting, playerName);
+        }
+
+
+        public void GameStarting(String startingInfo, Exception e, Object playerName) {
+            
+        }
+
+        public void CleanUpConnection()
+        {
+            ss.Close();
+        }
+    }
+}

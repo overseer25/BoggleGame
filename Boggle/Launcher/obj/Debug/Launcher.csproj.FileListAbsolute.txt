@@ -1,0 +1,17 @@
+C:\Users\Ryan\Documents\Visual Studio 2013\Projects\PS9\Launcher\bin\Debug\Launcher.exe.config
+C:\Users\Ryan\Documents\Visual Studio 2013\Projects\PS9\Launcher\bin\Debug\Launcher.exe
+C:\Users\Ryan\Documents\Visual Studio 2013\Projects\PS9\Launcher\bin\Debug\Launcher.pdb
+C:\Users\Ryan\Documents\Visual Studio 2013\Projects\PS9\Launcher\bin\Debug\BoggleServer.exe
+C:\Users\Ryan\Documents\Visual Studio 2013\Projects\PS9\Launcher\bin\Debug\BoggleServer.pdb
+C:\Users\Ryan\Documents\Visual Studio 2013\Projects\PS9\Launcher\obj\Debug\Launcher.csprojResolveAssemblyReference.cache
+C:\Users\Ryan\Documents\Visual Studio 2013\Projects\PS9\Launcher\obj\Debug\Launcher.exe
+C:\Users\Ryan\Documents\Visual Studio 2013\Projects\PS9\Launcher\obj\Debug\Launcher.pdb
+C:\Users\Thomas\Documents\Visual Studio 2013\Projects\PS9\Launcher\bin\Debug\Launcher.exe.config
+C:\Users\Thomas\Documents\Visual Studio 2013\Projects\PS9\Launcher\bin\Debug\Launcher.exe
+C:\Users\Thomas\Documents\Visual Studio 2013\Projects\PS9\Launcher\bin\Debug\Launcher.pdb
+C:\Users\Thomas\Documents\Visual Studio 2013\Projects\PS9\Launcher\bin\Debug\BoggleServer.exe
+C:\Users\Thomas\Documents\Visual Studio 2013\Projects\PS9\Launcher\bin\Debug\StringSocketOfficial.dll
+C:\Users\Thomas\Documents\Visual Studio 2013\Projects\PS9\Launcher\bin\Debug\BoggleServer.pdb
+C:\Users\Thomas\Documents\Visual Studio 2013\Projects\PS9\Launcher\obj\Debug\Launcher.csprojResolveAssemblyReference.cache
+C:\Users\Thomas\Documents\Visual Studio 2013\Projects\PS9\Launcher\obj\Debug\Launcher.exe
+C:\Users\Thomas\Documents\Visual Studio 2013\Projects\PS9\Launcher\obj\Debug\Launcher.pdb

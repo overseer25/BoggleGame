@@ -1,0 +1,103 @@
+﻿using System;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
+using System.Threading;
+using BoggleClient;
+
+namespace BoggleClientTest {
+
+    [TestClass]
+    public class UnitTest1 {
+        int numPlayers = 0;
+        ManualResetEvent gameStarted = new ManualResetEvent(false);
+
+        [TestInitialize]
+        public void startServer(){
+            String[] arguments = new String[2];
+            arguments[0] = "" + 10;
+            arguments[1] = @"..\..\..\dictionary.txt";
+            ThreadPool.QueueUserWorkItem((x) => BoggleServer.BoggleServer.Main(arguments));
+        }
+
+        [TestMethod]
+        public void CreateGame() {
+            Client c1 = new Client();
+            c1.StartGame += SetMre;
+            c1.Terminate += Terminate;
+            c1.UpdateTime += (s) => { };
+            Client c2 = new Client();
+            c2.StartGame += SetMre;
+            c2.Terminate += Terminate;
+            c2.UpdateTime += (s) => { };
+
+            c1.Connect("Me", "localhost");
+            c2.Connect("You", "localhost");
+
+            Assert.AreEqual(true, gameStarted.WaitOne(5000), "Timed out waiting for players");
+        }
+
+        [TestMethod]
+        public void SendWords()
+        {
+            Client c1 = new Client();
+            c1.StartGame += (s, t) => { };
+            c1.Terminate += Terminate;
+            c1.UpdateScores += (s, t) => { };
+            c1.UpdateTime += (s) => { };
+            c1.EndGame += SetMre;
+            Client c2 = new Client();
+            c2.StartGame += (s,t) => { };
+            c2.Terminate += Terminate;
+            c2.UpdateScores += (s, t) => { };
+            c2.UpdateTime += (s) => { };
+
+            c1.Connect("Me", "localhost");
+            c2.Connect("You", "localhost");
+            c1.SendWord("InvalidWord");
+            c2.SendWord("I");
+
+            Assert.AreEqual(true, gameStarted.WaitOne(5000), "Timed out waiting for players");
+        }
+
+        [TestMethod]
+        public void EndGame()
+        {
+            Client c1 = new Client();
+            c1.StartGame += (s, t) => { };
+            c1.Terminate += Terminate;
+            c1.UpdateScores += (s, t) => { };
+            c1.UpdateTime += (s) => { };
+            c1.EndGame += SetMre;
+            Client c2 = new Client();
+            c2.StartGame += (s, t) => { };
+            c2.Terminate += Terminate;
+            c2.UpdateScores += (s, t) => { };
+            c2.UpdateTime += (s) => { };
+            c2.EndGame += SetMre;
+
+
+            c1.Connect("Me", "localhost");
+            c2.Connect("You", "localhost");
+            c1.SendWord("InvalidWord");
+            c2.SendWord("I");
+
+            Assert.AreEqual(true, gameStarted.WaitOne(20000), "Timed out waiting for players");
+        }
+
+        private void SetMre(String name, String boardGame) {
+            numPlayers++;
+            if(numPlayers == 2)
+                gameStarted.Set();
+        }
+        private void SetMre(String[] name, String[] boardGame, String[] third, String[] fourth, String[] fifth)
+        {
+            numPlayers++;
+            if (numPlayers == 2)
+                gameStarted.Set();
+        }
+
+        private void Terminate(String message) {
+            gameStarted.Reset();
+            throw new ArgumentOutOfRangeException(message);
+        }
+    }
+}

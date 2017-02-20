@@ -1,0 +1,205 @@
+﻿using System;
+using CustomNetworking;
+using BoggleServer;
+using System.Collections.Generic;
+using System.Net.Sockets;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using System.Windows.Threading;
+using System.Windows;
+
+namespace BoggleClient
+{
+    /// <summary>
+    /// The model for the Boggle Client that handles all communication to the server.
+    /// </summary>
+    public class Client
+    {
+        /// <summary>
+        /// The StringSocket connection to the server
+        /// </summary>
+        private StringSocket ss;
+
+        /// <summary>
+        /// Called if the client loses their connection to either the connection or the other player.
+        /// </summary>
+        public event Action<String> Terminate;
+        /// <summary>
+        /// Called when a game is started.  This must be set before Connect() is called.  
+        /// Given the 16 characters on the boggleBoard and the opponent's Name
+        /// </summary>
+        public event Action<String, String> StartGame;
+        /// <summary>
+        /// Called when the time needs to be updated
+        /// </summary>
+        public event Action<String> UpdateTime;
+        /// <summary>
+        /// Called when either score changes
+        /// </summary>
+        public event Action<String, String> UpdateScores;
+        /// <summary>
+        /// Updates the list of words currently displayed on the GUI.
+        /// </summary>
+        public event Action<String> UpdateWordList;
+        /// <summary>
+        /// Called when time has run out.  Sends the final score.
+        /// </summary>
+        public event Action<String[], String[], String[], String[], String[]> EndGame;
+
+        /// <summary>
+        /// Creates a new client and tries to connect to the given server
+        /// </summary>
+        /// <param name="playerName">The name of the player</param>
+        /// <param name="ipAddress">The ip address or hostname of the server</param>
+        public Client() { }
+
+        public void Connect(String playerName, String ipAddress){
+            if(ss!= null && ss.Connected)
+                ss.Close();
+
+            TcpClient tcpClient;
+            try {
+                tcpClient = new TcpClient(ipAddress, 2000);
+                ss = new StringSocket(tcpClient.Client, new UTF8Encoding());
+            }
+            catch(SocketException e) {
+                Terminate(e.Message);
+                return;
+            }
+
+            ss.BeginSend("PLAY " + playerName + "\n", (e, o) => { }, playerName);
+            ss.BeginReceive(GameStarting, playerName);
+        }
+
+
+        /// <summary>
+        /// Sends a word through the string socket to the server.
+        /// </summary>
+        /// <param name="word"></param>
+        public void SendWord(string word)
+        {
+            ss.BeginSend("WORD " + word + "\n", (e, o) => { }, ss);
+
+            //Updates the list of played words.
+            if (UpdateWordList != null)
+            {
+                UpdateWordList(word);
+            }
+
+            ss.BeginReceive(MessageReceived, ss);
+        }
+
+
+        private void GameStarting(String startingInfo, Exception e, Object playerName)
+        {
+            if(startingInfo == null) {
+                Terminate("lost connection to the server");
+                CleanUpConnection();
+                return;
+            }
+
+            String[] words = startingInfo.Split(' ');
+            // validate the string
+            if (!words[0].Equals("START"))
+                throw new ArgumentException("Got invalid info from the server.");
+
+            String boggleBoard = words[1];
+            String opponentName = words[3];
+            StartGame(boggleBoard, opponentName);
+
+            UpdateTime(words[2]);
+
+            ss.BeginReceive(MessageReceived, playerName);
+        }
+
+
+        /// <summary>
+        /// Called when a message is received during the game.  The message could be any of the following:
+        ///     Time update, Score update, EndGame, Terminate
+        /// </summary>
+        /// <param name="msg"></param>
+        /// <param name="e"></param>
+        /// <param name="playerName"></param>
+        private void MessageReceived(String msg, Exception e, Object playerName)
+        {
+            if (msg == null) { Terminate("Lost connection to the server."); return; }
+
+           if(msg.ToUpper().StartsWith("TIME ")){
+                UpdateTime(msg.Substring(msg.IndexOf(' ')+1)); //+1 because there is an initial empty character at the start of our parsed string.
+           }
+           else if(msg.ToUpper().StartsWith("SCORE ")){
+                String[] scores = msg.Substring(msg.IndexOf(' ')+1).Split(' ');
+                UpdateScores(scores[0], scores[1]);
+ 
+           } 
+           else if(msg.ToUpper().StartsWith("STOP ")){
+                ParseEndGame(msg.Substring(msg.IndexOf(' ')+1));
+                CleanUpConnection();
+                return;
+           }
+           else if(msg.ToUpper().StartsWith("TERMINATED"))
+           {
+                Terminate("Lost connection to opponent. Returning to home screen.");
+                CleanUpConnection();
+                return;
+           }
+            ss.BeginReceive(MessageReceived, playerName);
+        }
+
+        private void ParseEndGame(string msg)
+        {
+            List<String> words = new List<String>(msg.Split(' '));
+
+            for (int x = words.Count-1; x >= 0; x--)
+            {
+                if (words[x] == "") { words.Remove(words[x]); }
+            }
+
+            int numMyLegalWords = Convert.ToInt32(words[0]);
+            words.RemoveAt(0);
+
+            // Get my legal words
+            String[] myLegalWords = new String[numMyLegalWords];
+            words.CopyTo(0, myLegalWords, 0, numMyLegalWords);
+            words.RemoveRange(0, numMyLegalWords);
+
+            // Get opponents legal words
+            int numOpponentLegalWords = Convert.ToInt32(words[0]);
+            words.RemoveAt(0);
+            String[] opponentLegalWords = new String[numOpponentLegalWords];
+            words.CopyTo(0, opponentLegalWords, 0, numOpponentLegalWords);
+            words.RemoveRange(0, numOpponentLegalWords);
+
+            // Get common words
+            int numCommonWords = Convert.ToInt32(words[0]);
+            words.RemoveAt(0);
+            String[] commonWords = new String[numCommonWords];
+            words.CopyTo(0, commonWords, 0, numCommonWords);
+            words.RemoveRange(0, numCommonWords);
+
+            // Get my illegal words
+            int numMyIllegalWords = Convert.ToInt32(words[0]);
+            words.RemoveAt(0);
+            String[] myIllegalWords = new String[numMyIllegalWords];
+            words.CopyTo(0, myIllegalWords, 0, numMyIllegalWords);
+            words.RemoveRange(0, numMyIllegalWords);
+
+            // Get opponent's illegal words
+            int numOpponentIllegalWords = Convert.ToInt32(words[0]);
+            words.RemoveAt(0);
+            String[] opponentIllegalWords = new String[numOpponentIllegalWords];
+            words.CopyTo(0, opponentIllegalWords, 0, numOpponentIllegalWords);
+            words.RemoveRange(0, numOpponentIllegalWords);
+
+            System.Diagnostics.Debug.WriteLine("Sending End Game Message");
+
+            EndGame(myLegalWords, opponentLegalWords, commonWords, myIllegalWords, opponentIllegalWords);
+        }
+
+        public void CleanUpConnection()
+        {
+            ss.Close();
+        }
+    }
+}

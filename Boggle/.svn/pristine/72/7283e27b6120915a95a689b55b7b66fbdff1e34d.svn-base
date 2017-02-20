@@ -1,0 +1,58 @@
+﻿using System;
+using CustomNetworking;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Net.Sockets;
+using System.Threading.Tasks;
+using System.Threading;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Data;
+using System.Windows.Documents;
+using System.Windows.Input;
+using System.Windows.Media;
+using System.Windows.Media.Imaging;
+using System.Windows.Navigation;
+using System.Windows.Shapes;
+using BoggleServer;
+
+namespace BoggleClient
+{
+    /// <summary>
+    /// Interaction logic for MainWindow.xaml
+    /// </summary>
+    public partial class MainWindow : Window
+    {
+        private ClientWork clientWork;
+        public MainWindow()
+        {
+            InitializeComponent();
+            CancelButton.Visibility = Visibility.Hidden;
+            clientWork = new ClientWork();
+        }
+
+
+        private void PlayButton_Click(object sender, EventArgs e)
+        {
+            CancelButton.Visibility = Visibility.Visible;
+            PlayButton.IsEnabled = false;
+            PlayButton.Content = "Connecting";
+        }
+
+        private void NameTextbox_TextChanged(object sender, TextChangedEventArgs e)
+        {
+
+        }
+
+        private void IPTextbox_TextChanged(object sender, TextChangedEventArgs e)
+        {
+
+        }
+
+        private void CancelButton_Click(object sender, RoutedEventArgs e)
+        {
+
+        }
+    }
+}

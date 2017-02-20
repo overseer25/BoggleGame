@@ -1,0 +1,47 @@
+﻿using System;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
+using System.Threading;
+using BoggleClient;
+
+namespace BoggleClientTest {
+
+    [TestClass]
+    public class UnitTest1 {
+        int numPlayers = 0;
+        ManualResetEvent gameStarted = new ManualResetEvent(false);
+
+        [TestInitialize]
+        public void startServer(){
+            String[] arguments = new String[2];
+            arguments[0] = "" + 200;
+            arguments[1] = @"..\..\..\dictionary.txt";
+            ThreadPool.QueueUserWorkItem((x) => BoggleServer.BoggleServer.Main(arguments));
+        }
+
+        [TestMethod]
+        public void CreateGame() {
+            Client c1 = new Client();
+            c1.StartGame += SetMre;
+            c1.Terminate += Terminate;
+            Client c2 = new Client();
+            c2.StartGame += SetMre;
+            c2.Terminate += Terminate;
+
+            c1.Connect("Me", "localhost");
+            c2.Connect("You", "localhost");
+
+            Assert.AreEqual(true, gameStarted.WaitOne(5000), "Timed out waiting for players");
+        }
+
+        private void SetMre(String name, String boardGame) {
+            numPlayers++;
+            if(numPlayers == 2)
+                gameStarted.Set();
+        }
+
+        private void Terminate(String message) {
+            gameStarted.Reset();
+            throw new ArgumentOutOfRangeException(message);
+        }
+    }
+}

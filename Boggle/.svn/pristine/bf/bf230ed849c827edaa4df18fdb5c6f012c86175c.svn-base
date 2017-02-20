@@ -1,0 +1,122 @@
+﻿using System;
+using CustomNetworking;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Net.Sockets;
+using System.Threading.Tasks;
+using System.Threading;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Data;
+using System.Windows.Documents;
+using System.Windows.Input;
+using System.Windows.Media;
+using System.Windows.Media.Imaging;
+using System.Windows.Navigation;
+using System.Windows.Shapes;
+using BoggleServer;
+
+namespace BoggleClient
+{
+    /// <summary>
+    /// Interaction logic for MainWindow.xaml
+    /// </summary>
+    public partial class MainWindow : Window
+    {
+        private List<TextBox> grid;
+        private Client clientWork;
+        public MainWindow()
+        {
+            InitializeComponent();
+            grid = new List<TextBox>() { Board1, Board2, Board3, Board4, Board5, Board6
+            , Board7, Board8, Board9, Board10, Board11, Board12, Board13, Board14, Board15
+            , Board16};
+            CancelButton.Visibility = Visibility.Hidden;
+        }
+
+        private void StartGame(String boggleBoard, String opponentName)
+        {
+            int i = 0;
+            //TODO: Begin the game once the START string has been received.
+            foreach (TextBox textbox in grid)
+            {
+                textbox.Text = boggleBoard.ElementAt(i).ToString();
+                i++;
+            }
+            OpponenetNameTextbox.Content += opponentName;
+        }
+
+        private void UpdateTime(int time)
+        {
+            //TODO: Create textbox to hold time, and update it here.
+            TimeTextBox.Text = time.ToString();
+        }
+
+        private void UpdateScore(int score1, int score2)
+        {
+            //TODO: Create textboxes to hold scores, and update them here.
+            YourScore.Text = score1.ToString();
+            OpponentScore.Text = score2.ToString();
+        }
+
+        private void EndGame()
+        {
+            //TODO: End the game here, once the timer has run out.
+        }
+
+        private void Terminated()
+        {
+            //TODO: transition back to the main menu to inform the player 
+            //that the game has been terminated.
+            MessageBox.Show("Lost connection to opponent. Returning to main menu.");
+            tabControl.SelectedIndex = 0;
+        }
+        
+        private void PlayButton_Click(object sender, EventArgs e)
+        {
+            CancelButton.Visibility = Visibility.Visible;
+            PlayButton.IsEnabled = false;
+            PlayButton.Content = "Connecting";
+            try
+            {
+                clientWork = new Client(NameTextbox.Text, IPTextbox.Text);
+                clientWork.Connect();
+                clientWork.StartGame += StartGame;
+            }
+            catch (SocketException)
+            {
+                ConnectionFailed();
+            }
+        }
+
+
+        private void NameTextbox_TextChanged(object sender, TextChangedEventArgs e)
+        {
+
+        }
+
+        private void IPTextbox_TextChanged(object sender, TextChangedEventArgs e)
+        {
+
+        }
+
+        private void CancelButton_Click(object sender, RoutedEventArgs e)
+        {
+            CancelButton.Visibility = Visibility.Hidden;
+
+            PlayButton.IsEnabled = true;
+            PlayButton.Content = "Play";
+        }
+
+        public void ConnectionFailed()
+        {
+            MessageBox.Show("Connection failed. Check IPAddress and try again. Ch33ky skrub.");
+            CancelButton_Click(null, null);
+        }
+
+        private void TextBox_TextChanged(object sender, TextChangedEventArgs e) {
+
+        }
+    }
+}

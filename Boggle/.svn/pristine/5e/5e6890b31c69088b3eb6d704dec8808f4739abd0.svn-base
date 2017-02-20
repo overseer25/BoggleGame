@@ -1,0 +1,353 @@
+﻿using BB;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
+
+namespace BoggleServer
+{
+    /// <summary>
+    /// Holds a games session. 
+    /// Multiple game sessions can be running on the server at one secondsLeft.
+    /// </summary>
+    class GameSession
+    {
+        //TODO: handle the case where one of the client disconnects in the middle of a game
+        /// <summary>
+        /// Contains the amount of secondsLeft to play.
+        /// </summary>
+        private int secondsLeft;
+        /// <summary>
+        /// Contains all valid words for this game
+        /// </summary>
+        private HashSet<String> dictionary;
+        /// <summary>
+        /// The lock for the word callback.
+        /// </summary>
+        private readonly object scoreLock;
+        /// <summary>
+        /// The first player to join this GameSession
+        /// </summary>
+        public Player Player1 { get; private set; }
+        /// <summary>
+        /// The second player to join this GamesSession
+        /// </summary>
+        public Player Player2 { get; private set; }
+        /// <summary>
+        /// The BoggleBoard used for this game
+        /// </summary>
+        public BoggleBoard Board { get; private set; }
+
+        /// <summary> Creates a new GameSession given the first and second player </summary>
+        /// <param name="p1">The first player to join</param>
+        /// <param name="p2">The second player to join</param>
+        public GameSession(Player p1, Player p2, int seconds, HashSet<string> dictionary) 
+            : this (p1, p2, new BoggleBoard(), seconds, dictionary) { }
+
+        /// <summary>
+        /// Creates a new GameSession, given the first player to join, 
+        /// the second player to join and a specific BoggleBoard to use.
+        /// </summary>
+        /// <param name="p1">The first player to join</param>
+        /// <param name="p2">The second player to join</param>
+        /// <param name="board">A BoggleServer Board consisting of 16 letters</param>
+        public GameSession(Player p1, Player p2, BoggleBoard board, int seconds, 
+                           HashSet<string> dictionary){
+            String debugMsg = "Starting GameSession " + p1.Name + " and " + p2.Name;
+            System.Diagnostics.Debug.WriteLine(debugMsg);
+
+            scoreLock = new Object();
+            Player1 = p1;
+            Player2 = p2;
+            secondsLeft = seconds;
+            Board = board;
+            this.dictionary = dictionary;
+            sendGreeting();
+            //Start receiving information
+            Player1.Socket.BeginReceive(wordPlayed, Player1);
+            Player2.Socket.BeginReceive(wordPlayed, Player2);
+            //Start the countdown in its own thread.
+            ThreadPool.QueueUserWorkItem((x) => startCountdown());
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="e"></param>
+        /// <param name="o"></param>
+        /// <returns>Returns true if the socket had an exception and the game needs to be terminated</returns>
+        private void sendCallbackCheck(Exception e, object o) {
+            if (e != null) {
+                Player onlinePlayer = getOpponent(o as Player);
+                onlinePlayer.Socket.BeginSend("TERMINATED", (Exception, Object) => { onlinePlayer.Socket.Close();}, onlinePlayer);
+                
+            }
+        }
+
+        private bool receiveCallbackCheck(String message, Exception e, object o) {
+            if (e != null) {
+                Player onlinePlayer = getOpponent(o as Player);
+                System.Diagnostics.Debug.WriteLine("Exception Terminating game from " + ((Player)o).Name);
+                onlinePlayer.Socket.BeginSend("TERMINATED", (Exception, Object) => { }, onlinePlayer);
+                onlinePlayer.Socket.Close();
+                return true;
+            }
+                // exception is null and message is null
+            else if (message == null) {
+                System.Diagnostics.Debug.WriteLine("Terminating game from " + ((Player)o).Name);
+                Player onlinePlayer = getOpponent(o as Player);
+                onlinePlayer.Socket.BeginSend("TERMINATED", (Exception, Object) => { }, onlinePlayer);
+                onlinePlayer.Socket.Close();
+                return true;
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Sends current time remaining, and decrements the value.
+        /// </summary>
+        public void startCountdown(){
+            while (secondsLeft != 0 && Player1.Socket.Connected && Player2.Socket.Connected)
+            {
+                String timeMsg = "TIME " + secondsLeft.ToString() + "\n";
+                Player1.Socket.BeginSend(timeMsg, sendCallbackCheck, Player1);
+                Player2.Socket.BeginSend(timeMsg, sendCallbackCheck, Player2);
+                secondsLeft--;
+                //Wait 1 second before repeating.
+                System.Threading.Thread.Sleep(1000);
+                if (secondsLeft == 0)
+                {
+                    endGame();
+                    return;
+                }
+            }
+            if (Player1.Socket.Connected) {
+                Player1.Socket.BeginSend("TERMINATED", (Exception, Object) => { }, Player1);
+                Player1.Socket.Close();
+            }
+            else {
+                Player2.Socket.BeginSend("TERMINATED", (Exception, Object) => { }, Player2);
+                Player2.Socket.Close();
+            }
+
+        }
+
+        /// <summary>
+        /// Handles receiving a word.
+        /// </summary>
+        ///<param name="e">The exception that was thrown when a word could not be received</param>
+        ///<param name="message">The message containing the word</param>
+        ///<param name="payload">The player that sent the message</param>
+        private void wordPlayed(string message, Exception e, object payload)
+        {
+            System.Diagnostics.Debug.WriteLine("Receiving a word");
+            // multiple words are not allowed to come in at once, it might corrupt the scores
+            lock (scoreLock)
+            {
+                if (receiveCallbackCheck(message, e, payload)) {
+                    return;
+                }
+
+                Player player = ((Player)payload);
+                Player opponent = getOpponent(player);
+                // message format is:  WORD (word) 
+
+                System.Diagnostics.Debug.WriteLine("Received " + message + " from " + player.Name);
+
+                if (message.Contains("WORD "))
+                {
+                    String word = message.Substring("WORD ".Length).ToUpper();
+                    int wordValue = computeScore(word);
+
+                    // First, check to see if the word was already played. 
+                    // Constant lookup time ensures efficiency.
+                    if (!player.ValidWords.Contains(word) && !player.InvalidWords.Contains(word))
+                    {
+                        // if the word is invalid, 
+                        // take off 1 point, and add to the invalid words list.
+                        if (wordValue == -1)
+                        {
+                            player.Score += wordValue;
+                            player.InvalidWords.Add(word);
+                        }
+                        // else check to see if the opponent has played it
+                        else
+                        {
+                            // if the opponent played the word, no one gets points for it
+                            if (opponent.ValidWords.Contains(word))
+                            {
+                                //Subtract value of word from player 2's score.
+                                opponent.Score -= wordValue;
+                            }
+                            //Else, add word value to player's score.
+                            else
+                            {
+                                player.Score += wordValue;
+                            }
+                            //Add word to list of words that have been played.
+                            player.ValidWords.Add(word);
+                        }
+                    }
+                    sendScores();
+                }
+                else
+                {
+                    //If message is not a valid command, send the ignoring statement.
+                    player.Ignoring(message);
+                }
+                player.Socket.BeginReceive(wordPlayed, player);
+            }
+        }
+
+        /// <summary>
+        /// Sends both scores to both players
+        /// </summary>
+        private void sendScores() {
+            System.Diagnostics.Debug.WriteLine(Player1.Name + "'s score is " + Player1.Score + ". " + Player2.Name + "'s score is " + Player2.Score);
+            String score4P1 = "SCORE " + Player1.Score + " " + Player2.Score + "\n";
+            String score4P2 = "SCORE " + Player2.Score + " " + Player1.Score + "\n";
+            Player1.Socket.BeginSend(score4P1, sendCallbackCheck, Player1);
+            Player2.Socket.BeginSend(score4P2, sendCallbackCheck, Player2);
+        }
+
+        /// <summary>
+        /// Handles computing the player's score after playing a word.
+        /// </summary>
+        /// <param name="word">Word for computing the score.</param>
+        private int computeScore(string word)
+        {
+            //If the dictionary does not contain the word, return -1.
+            if (!dictionary.Contains(word) || !Board.CanBeFormed(word)) { return -1; }
+
+            //Switch case for handling score/length of word.
+            switch (word.Length)
+            {
+                // Each case number represents the length of the word.
+                case 1:
+                    return 0;
+                case 2:
+                    return 0;
+                case 3:
+                    return 1;
+                case 4:
+                    return 1;
+                case 5:
+                    return 2;
+                case 6:
+                    return 3;
+                case 7:
+                    return 5;
+                default:
+                    return 11;
+            }
+        }
+        
+
+        /// <summary>
+        /// Sends the greeting below to each of the players
+        /// START 
+        /// (the 16 characters that appear on the boggle board)
+        /// (the length of the game in seconds)
+        /// (the oppenents name)
+        ///  with each line space delimited
+        /// </summary>
+        private void sendGreeting(){
+            string s1 = "START " + Board.ToString() + " " + 
+                        secondsLeft + " " + Player2.Name + "\n";
+            string s2 = "START " + Board.ToString() + " " + 
+                        secondsLeft + " " + Player1.Name + "\n";
+            string msgSent1 = "Sent:  " + s1 + " to " + Player1.Name;
+            string msgSent2 = "Sent:  " + s2 + " to " + Player2.Name;
+            Player1.Socket.BeginSend( s1, sendCallbackCheck, Player1);
+            Player2.Socket.BeginSend( s2, sendCallbackCheck, Player2);
+        }
+
+        /// <summary>
+        /// Returns the opponent of the given player
+        /// </summary>
+        /// <param name="p">the player to get the opponent of </param>
+        /// <returns>the opponent of the given player</returns>
+        private Player getOpponent(Player p) {
+            if (p == Player1)
+                return Player2;
+            else
+                return Player1;
+        }
+
+        /// <summary>
+        /// Function called when the game has ended. 
+        /// Sends game statistics to both players, and disconnects the clients.
+        /// Next, it transmits a game summary line to both clients. 
+        /// Suppose that during the game the client played a legal words that weren't 
+        /// played by the opponent, 
+        /// the opponent played b legal words that weren't played by the client, 
+        /// both players played c legal words in common, the client played d illegal words, 
+        /// and the opponent played e illegal words. 
+        /// The game summary command should be "STOP a #1 b #2 c #3 d #4 e #5", 
+        /// where a, b, c, d, and e are the counts described above 
+        /// and #1, #2, #3, #4, and #5 are the corresponding space-separated lists of words.
+        /// </summary>
+        private void endGame()
+        {
+            StringBuilder p1Unique = new StringBuilder();
+            StringBuilder dupWords = new StringBuilder();
+            String p2Unique;
+            List<String> wordsToRemove = new List<String>();
+
+            foreach (String word in Player1.ValidWords) {
+                /* if player 2 has the word, 
+                * put it in the duplicate list and remove it from the valid words 
+                * so that the valid words only contains the unique words.
+                 * 
+                 * Due to concurrent modification being an issue, we cannot remove from
+                 * Player 1's list of valid words, as we are iterating over it in this
+                 * list. Therefore, we keep track of what words to remove from Player 1, and
+                 * delete them from Player 2. We will delete the words from Player 1 later.
+                */
+                if (Player2.ValidWords.Contains(word)) {
+                    dupWords.Append(" " + word);
+                    wordsToRemove.Add(word);
+                    Player2.ValidWords.Remove(word);
+                }
+                else {
+                    p1Unique.Append(word);
+                }
+            }
+
+            //Remove each word from the list of words to remove from Player 1.
+            foreach (String word in wordsToRemove)
+            {
+                Player1.ValidWords.Remove(word);
+            }
+
+            // now that all the duplicate words are removed from both lists,
+            // player 2's words are all unique.
+            p2Unique = String.Join(" ", Player2.ValidWords.ToArray<String>());
+
+            //Invalid words for each client.
+            String p1Invalid = String.Join(" ", Player1.InvalidWords.ToArray<String>());
+            String p2Invalid = String.Join(" ", Player2.InvalidWords.ToArray<String>());
+
+
+            //Game stats for the clients
+            String p1Message = "STOP " + p1Unique + " #1 " + p2Unique + " #2 " +
+                                dupWords + " #3 " + p1Invalid + " #4 " + p2Invalid + " #5 \n";
+            String p2Message = "STOP " + p2Unique + " #1 " + p1Unique + " #2 " + 
+                                dupWords + " #3 " + p2Invalid + " #4 " + p1Invalid + " #5 \n";
+
+            System.Diagnostics.Debug.WriteLine("Sending stop command to " + Player1.Name + ": " + p1Message);
+            System.Diagnostics.Debug.WriteLine("Sending stop command to " + Player2.Name + ": " + p2Message);
+
+
+            //Send the data to the clients.
+            Player1.Socket.BeginSend(p1Message, sendCallbackCheck, Player1);
+            Player2.Socket.BeginSend(p2Message, sendCallbackCheck, Player2);
+
+            //Close the client sockets.
+            Player1.Socket.Close();
+            Player2.Socket.Close();
+        }
+    } // End GameSession class
+}

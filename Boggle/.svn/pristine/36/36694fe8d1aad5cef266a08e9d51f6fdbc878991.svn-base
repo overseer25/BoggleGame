@@ -1,0 +1,380 @@
+﻿using BoggleServer;
+using CustomNetworking;
+using System;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
+using System.Net.Sockets;
+using System.Text;
+using System.Diagnostics;
+using System.Threading;
+
+namespace BoggleServerTest
+{
+    [TestClass]
+    public class BoggleTester
+    {
+        private Player p1;
+        private Player p2;
+        private string p1Opponent;
+        private string p2Opponent;
+        private int p1Score = 0;
+        private int p2Score = 0;
+        private ManualResetEvent mreP1;
+        private ManualResetEvent mreP2;
+        private int callback1Num = 0;
+        private int callback2Num = 0;
+        private StringSocket ss1;
+        private StringSocket ss2;
+        private string board = "LAAYVIXZEOHOSMEN";
+        private int timeout = 9000;
+
+        //LAAY
+        //VIXZ
+        //EOHO
+        //SMEN
+
+        /// <summary>
+        /// Starts a server with games that last for 200 seconds, the default dictionary and the board above.
+        /// </summary>
+        [TestInitialize]
+        public void startDefaultServer(){
+            String[] args = new String[3];
+            args[0] = "" + 200;
+            args[1] = @"..\..\..\Dictionary.txt";
+            args[2] = board;
+            ThreadPool.QueueUserWorkItem((x) => BoggleServer.BoggleServer.Main(args));
+            TcpClient client1 = new TcpClient("localhost", 2000);
+            TcpClient client2 = new TcpClient("localhost", 2000);
+            Encoding utf8 = new UTF8Encoding();
+            ss1 = new StringSocket(client1.Client, utf8);
+            ss2 = new StringSocket(client2.Client, utf8);
+            mreP1 = new ManualResetEvent(false);
+            mreP2 = new ManualResetEvent(false);
+        }
+
+
+        /// <summary>
+        /// Close both sockets to end the game
+        /// </summary>
+        [TestCleanup]
+        public void closeSockets() {
+            p1.Socket.Close();
+            p2.Socket.Close();
+        }
+
+        /// <summary>
+        /// This is a freaking test.
+        /// </summary>
+        [TestMethod]
+        public void RegisterTwo(){
+            p1 = new Player(ss1, "Bill");
+            p2 = new Player(ss2, "Joey");
+            p1.Socket.BeginSend("PLAY Bill\n", (e, o) => { }, p1);
+            p2.Socket.BeginSend("PLAY Joey\n", (e, o) => { }, p2);
+            p1.Socket.BeginReceive(receiveP1Opponent, p1);
+            p2.Socket.BeginReceive(receiveP2Opponent, p2);
+
+            Assert.AreEqual(true, mreP1.WaitOne(timeout), "Timed out waiting for " + p1.Name + " to get the start message");
+            Assert.AreEqual(p2.Name, p1Opponent);
+            Assert.AreEqual(true, mreP2.WaitOne(timeout), "Timed out waiting for " + p2.Name + " to get the start message");
+            Assert.AreEqual(p1.Name, p2Opponent);
+
+        }
+
+        private void receiveP1Opponent(String receivedMsg, Exception e, Object payload){
+            int posLastSpace = receivedMsg.LastIndexOf(" ");
+            string name = receivedMsg.Substring(posLastSpace + 1);
+            Player receivedPlayer = (Player)payload;            
+            p1Opponent = name;
+            mreP1.Set();
+        }
+
+        private void receiveP2Opponent(String receivedMsg, Exception e, Object payload)
+        {
+            int posLastSpace = receivedMsg.LastIndexOf(" ");
+            string name = receivedMsg.Substring(posLastSpace + 1);
+            Player receivedPlayer = (Player)payload;
+
+            p2Opponent = name;
+            mreP2.Set();
+        }
+
+        /// <summary>
+        /// This is another freaking test.
+        /// </summary>
+        [TestMethod]
+        public void TestGameSession()
+        {
+            // Make sure the string sockets aren't null
+            Assert.IsNotNull(ss1);
+            Assert.IsTrue(ss1.Connected);
+
+            Assert.IsNotNull(ss2);
+
+            p1 = new Player(ss1, "Ryan");
+            p2 = new Player(ss2, "Josh");
+            p1.Socket.BeginSend("PLAY Ryan\n", (e, o) => { }, p1);
+            p2.Socket.BeginSend("PLAY Josh\n", (e, o) => { }, p2);
+            p1.Socket.BeginReceive(receiveP1Opponent, p1);
+            p2.Socket.BeginReceive(receiveP2Opponent, p2);
+
+            Assert.AreEqual(true, mreP1.WaitOne(timeout), "Timed out waiting for " + p1.Name + " to get the start message");
+            Assert.AreEqual(p2.Name, p1Opponent);
+            Assert.AreEqual(true, mreP2.WaitOne(timeout), "Timed out waiting for " + p2.Name + " to get the start message");
+            Assert.AreEqual(p1.Name, p2Opponent);
+
+            mreP1.Reset();
+            mreP2.Reset();
+
+            p1.Socket.BeginReceive(receivedWord1, p1);
+
+            // Sends nine words, one of which is invalid, then checks to make sure the player's score is correct.
+            p1.Socket.BeginSend("WORD live\n", (e, o) => { System.Diagnostics.Debug.WriteLine("Word 'live' sent"); }, p1);
+            p1.Socket.BeginSend("WORD homes\n", (e, o) => { System.Diagnostics.Debug.WriteLine("Word 'homes' sent"); }, p1);
+            p1.Socket.BeginSend("WORD axioms\n", (e, o) => { System.Diagnostics.Debug.WriteLine("Word 'axioms' sent"); }, p1);
+            p1.Socket.BeginSend("WORD axoneme\n", (e, o) => { System.Diagnostics.Debug.WriteLine("Word 'axoneme' sent"); }, p1);
+            p1.Socket.BeginSend("WORD axonemes\n", (e, o) => { System.Diagnostics.Debug.WriteLine("Word 'axonemes' sent"); }, p1);
+
+            p1.Socket.BeginSend("WORD badword\n", (e, o) => { System.Diagnostics.Debug.WriteLine("Word 'badword' sent"); }, p1);
+
+            Assert.AreEqual(true, mreP1.WaitOne(timeout), "Timed out waiting for " + p1.Name + " to get the score");
+            Assert.AreEqual(21, p1Score, p1.Name + "'s score is incorrect");
+        }
+
+        /// <summary>
+        /// Callback for the TestGameSession test.
+        /// </summary>
+        /// <param name="s"></param>
+        /// <param name="e"></param>
+        /// <param name="o"></param>
+        private void receivedWord1(string s, Exception e, object o)
+        {
+            if (s.StartsWith("SCORE "))
+            {
+                callback1Num++;
+                if (callback1Num == 6)
+                {
+                    // TODO: this is bad practice to hard code the length of the word
+                    String t = s.Substring(s.IndexOf(" ") + 1, 2);
+                    p1Score = Convert.ToInt32(t);
+                    p1.Socket.BeginReceive(receivedWord1, p1);
+                    mreP1.Set(); 
+                }
+                else
+                    p1.Socket.BeginReceive(receivedWord1, p1);
+            }
+            else
+                p1.Socket.BeginReceive(receivedWord1, p1);
+        }
+
+        ManualResetEvent terminated = new ManualResetEvent(false);
+        
+        /// <summary>
+        /// Checks that the server terminates a game properly.
+        /// </summary>
+        [TestMethod]
+        public void TestTermination()
+        {
+            terminated.Reset();
+            p1 = new Player(ss1, "Ryan");
+            p2 = new Player(ss2, "Josh");
+            p1.Socket.BeginSend("PLAY Ryan\n", (e, o) => { }, p1);
+            p2.Socket.BeginSend("PLAY Josh\n", (e, o) => { }, p2);
+            p1.Socket.BeginReceive((s, e, o) => { }, p1);
+            p2.Socket.BeginReceive((s, e, o) => { }, p2);
+
+            // Make sure the string sockets aren't null
+            Assert.IsNotNull(ss1);
+            Assert.IsTrue(ss1.Connected);
+
+            Assert.IsNotNull(ss2);
+
+            p1.Socket.BeginReceive(terminateCallback, p1);
+            p2.Socket.Close();
+
+            Assert.AreEqual(true, terminated.WaitOne(timeout), "Timed out waiting to terminate");
+        }
+
+
+        /// <summary>
+        /// Checks that the server terminates a game properly.
+        /// </summary>
+        [TestMethod]
+        public void TestTermination2()
+        {
+            terminated.Reset();
+            p1 = new Player(ss1, "Ryan");
+            p2 = new Player(ss2, "Josh");
+            p1.Socket.BeginSend("PLAY Ryan\n", (e, o) => { }, p1);
+            p2.Socket.BeginSend("PLAY Josh\n", (e, o) => { }, p2);
+            p1.Socket.BeginReceive((s, e, o) => { }, p1);
+            p2.Socket.BeginReceive((s, e, o) => { }, p2);
+
+            // Make sure the string sockets aren't null
+            Assert.IsNotNull(ss1);
+            Assert.IsTrue(ss1.Connected);
+
+            Assert.IsNotNull(ss2);
+
+            p1.Socket.BeginReceive(terminateCallback, p1);
+            p2.Socket.Close();
+
+            Assert.AreEqual(true, terminated.WaitOne(timeout), "Timed out waiting to terminate");
+        }
+
+        private void terminateCallback(String s, Exception e, Object o) {
+            if (s == null)
+                terminated.Set();
+        }
+
+
+        ManualResetEvent ignoring = new ManualResetEvent(false);
+
+        /// <summary>
+        /// Checks that the server terminates a game properly.
+        /// </summary>
+        [TestMethod]
+        public void TestIgnoring()
+        {
+            ignoring.Reset();
+            p1 = new Player(ss1, "Ryan");
+            p2 = new Player(ss2, "Josh");
+            p1.Socket.BeginSend("PLAY Ryan\n", (e, o) => { }, p1);
+            p2.Socket.BeginSend("PLAY Josh\n", (e, o) => { }, p2);
+            p1.Socket.BeginReceive((s, e, o) => { }, p1);
+            p2.Socket.BeginReceive((s, e, o) => { }, p2);
+
+            // Make sure the string sockets aren't null
+            Assert.IsNotNull(ss1);
+            Assert.IsTrue(ss1.Connected);
+
+            Assert.IsNotNull(ss2);
+
+            p1.Socket.BeginReceive(ignoringCallback, p1);
+            p1.Socket.BeginSend("WURD yolo\n", (e, o) => { }, p1); //Invalid command
+
+            Assert.AreEqual(true, ignoring.WaitOne(timeout), "Timed out waiting to ignore");
+        }
+
+        private void ignoringCallback(String s, Exception e, Object o)
+        {
+            if (s.Contains("IGNORING "))
+                ignoring.Set();
+            p1.Socket.BeginReceive(ignoringCallback, p1);
+        }
+    }
+
+    [TestClass]
+    public class TestSet2 {
+        private Player p1;
+        private Player p2;
+        private StringSocket ss1;
+        private StringSocket ss2;
+
+        /// <summary>
+        /// Starts a server with games that last for 200 seconds, the default dictionary and the board above.
+        /// </summary>
+        [TestInitialize]
+        public void startDefaultServer(){
+            String[] args = new String[2];
+            args[0] = "" + 200;
+            args[1] = @"..\..\..\Dictionary.txt";
+            ThreadPool.QueueUserWorkItem((x) => BoggleServer.BoggleServer.Main(args));
+            TcpClient client1 = new TcpClient("localhost", 2000);
+            TcpClient client2 = new TcpClient("localhost", 2000);
+            Encoding utf8 = new UTF8Encoding();
+            ss1 = new StringSocket(client1.Client, utf8);
+            ss2 = new StringSocket(client2.Client, utf8);
+        }
+
+        /// <summary>
+        /// Close both sockets to end the game
+        /// </summary>
+        [TestCleanup]
+        public void closeSockets() {
+            p1.Socket.Close();
+            p2.Socket.Close();
+        }
+
+        /// <summary>
+        /// Verifies that creating a random boggle board doesn't throw any exceptions
+        /// </summary>
+        [TestMethod]
+        public void RandomBoard() {
+            p1 = new Player(ss1, "Ryan");
+            p2 = new Player(ss2, "Josh");
+            p1.Socket.BeginSend("PLAY Ryan\n", (e, o) => { }, p1);
+            p2.Socket.BeginSend("PLAY Josh\n", (e, o) => { }, p2);
+            p1.Socket.BeginReceive((String, Exception, Object) => {}, p1);
+            p2.Socket.BeginReceive((String, Exception, Object) => {}, p2);
+        }
+    }
+
+    [TestClass]
+    public class TestSet3
+    {
+        private Player p1;
+        private Player p2;
+        private ManualResetEvent endGame = new ManualResetEvent(false);
+        private StringSocket ss1;
+        private StringSocket ss2;
+        private int timeout = 6000;
+        private string board = "LAAYVIXZEOHOSMEN";
+
+
+        /// <summary>
+        /// Starts a server with games that last for 200 seconds, the default dictionary and the board above.
+        /// </summary>
+        [TestInitialize]
+        public void startDefaultServer()
+        {
+            String[] args = new String[3];
+            args[0] = "" + 5;
+            args[1] = @"..\..\..\Dictionary.txt";
+            args[2] = board;
+            ThreadPool.QueueUserWorkItem((x) => BoggleServer.BoggleServer.Main(args));
+            TcpClient client1 = new TcpClient("localhost", 2000);
+            TcpClient client2 = new TcpClient("localhost", 2000);
+            Encoding utf8 = new UTF8Encoding();
+            ss1 = new StringSocket(client1.Client, utf8);
+            ss2 = new StringSocket(client2.Client, utf8);
+        }
+
+        /// <summary>
+        /// Close both sockets to end the game
+        /// </summary>
+        [TestCleanup]
+        public void closeSockets() {
+            p1.Socket.Close();
+            p2.Socket.Close();
+        }
+
+        /// <summary>
+        /// Verifies that creating a random boggle board doesn't throw any exceptions
+        /// </summary>
+        [TestMethod]
+        public void TestEndGame()
+        {
+            p1 = new Player(ss1, "Ryan");
+            p2 = new Player(ss2, "Josh");
+            p1.Socket.BeginSend("PLAY Ryan\n", (e, o) => { }, p1);
+            p2.Socket.BeginSend("PLAY Josh\n", (e, o) => { }, p2);
+            p1.Socket.BeginReceive(endGameCallback, p1);
+            p2.Socket.BeginReceive(endGameCallback, p2);
+
+
+            p1.Socket.BeginSend("WORD homes", (e,o) => { }, p1);
+            p2.Socket.BeginSend("WORD homes", (e,o) => { }, p2);
+
+            Assert.AreEqual(true, endGame.WaitOne(timeout));
+        }
+
+        private void endGameCallback(String s, Exception e, Object o){
+            if (s.Contains("STOP ")) {
+                endGame.Set();
+            }
+            else
+                (o as Player).Socket.BeginReceive(endGameCallback, (o as Player));
+
+        }
+    }
+}
